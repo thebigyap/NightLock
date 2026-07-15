@@ -34,7 +34,10 @@ def listen_loop(model_path, stop_event):
     try:
         with sd.RawInputStream(samplerate=samplerate, blocksize=8000, device=None, dtype='int16',
                                channels=1, callback=callback):
-            rec = vosk.KaldiRecognizer(model, samplerate)
+            # Grammar-constrained decoding: the recognizer can only ever
+            # output "night lock" or [unk], which makes the small model
+            # behave like a keyword spotter.
+            rec = vosk.KaldiRecognizer(model, samplerate, '["night lock", "[unk]"]')
 
             while not stop_event.is_set():
                 try:
@@ -46,19 +49,7 @@ def listen_loop(model_path, stop_event):
                     res = json.loads(rec.Result())
                     text = res.get('text', '').lower()
 
-                    # Watch for variations of the word.
-                    # This voice model is trash so,
-                    # lots of acceptable variations.
-                    trigger_words = [
-                        "nightlock", "night lock", "knight lock",
-                        "knightlock", "night log", "knight log",
-                        "may look", "natal arc", "new york", "matlock",
-                        "malik", "they look", "network", "nine o'clock",
-                        "naik walk", "now ugh", "they like", "nighthawk",
-                        "night mark", "nate lot", "nioc",
-                        "night org", "nine log", "now what", "nine or"
-                    ]
-                    if any(trigger in text for trigger in trigger_words):
+                    if "night lock" in text:
                         lock_workstation()
                 else:
                     # We rely on full results to avoid false positives

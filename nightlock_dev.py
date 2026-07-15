@@ -46,50 +46,33 @@ def main():
                                channels=1, callback=callback):
             
             print("Listening for 'nightlock'... (Speak into your mic!)")
-            rec = vosk.KaldiRecognizer(model, samplerate)
-            
+            # Grammar-constrained decoding: the recognizer can only ever
+            # output "night lock" or [unk], which makes the small model
+            # behave like a keyword spotter.
+            rec = vosk.KaldiRecognizer(model, samplerate, '["night lock", "[unk]"]')
+
             while True:
                 data = q.get()
-                
+
                 # Check if it accepted a full phrase
                 if rec.AcceptWaveform(data):
                     res = json.loads(rec.Result())
                     text = res.get('text', '').lower()
                     if text.strip():
                         print(f"Full Result: '{text}'")
-                    
-                    trigger_words = [
-                        "nightlock", "night lock", "knight lock", 
-                        "knightlock", "night log", "knight log",
-                        "may look", "natal arc", "new york", "matlock",
-                        "malik", "they look", "network", "nine o'clock",
-                        "naik walk", "now ugh", "they like", "nighthawk",
-                        "night mark", "milk", "nate lot", "nioc",
-                        "night org", "nine log", "now what", "nine or"
-                    ]
-                    
-                    if any(trigger in text for trigger in trigger_words):
+
+                    if "night lock" in text:
                         lock_workstation()
                 else:
                     # Look at partial text while you are speaking
                     partial = json.loads(rec.PartialResult())
                     partial_text = partial.get('partial', '').lower()
-                    
+
                     if partial_text.strip():
                         # Using \r overwrites the line so it updates in real time cleanly
                         print(f"Partial: '{partial_text}'", end='\r')
-                        
-                        trigger_words = [
-                            "nightlock", "night lock", "knight lock", 
-                            "knightlock", "night log", "knight log",
-                            "may look", "natal arc", "new york", "matlock",
-                            "malik", "they look", "network", "nine o'clock",
-                            "naik walk", "now ugh", "they like", "nighthawk",
-                            "night mark", "milk", "nate lot", "nioc",
-                            "night org", "nine log", "now what", "nine or"
-                        ]
-                        
-                        if any(trigger in partial_text for trigger in trigger_words):
+
+                        if "night lock" in partial_text:
                             print() # Break the line
                             lock_workstation()
                             # Reset recognizer so it doesn't trigger again immediately on the same partial
